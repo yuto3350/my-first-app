@@ -36,3 +36,12 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .empty { border: 1px dashed #bdcec8; border-radius: 14px; text-align: center; padding: 40px 16px; color: #59716c; line-height: 1.9; }
 footer { text-align: center; font-size: 12px; margin: 32px 0; }
 @media (max-width: 480px) { .container { width: calc(100% - 28px); margin: 28px auto; } .card { padding: 22px 18px; } .fields { gap: 16px 12px; } .record { padding: 20px; } .form-actions > button { flex: 1; } }
+
+.history-filter { max-width: 260px; margin-bottom: 20px; }
+select:disabled { background: #edf4f1; color: #59716c; }
+.date-group { border: 1px solid #dce7e3; border-radius: 14px; background: white; overflow: hidden; }
+.date-group summary { padding: 18px 24px; cursor: pointer; font-weight: 700; color: #24594d; }
+.date-group summary:hover { background: #edf4f1; }
+.date-group summary:focus-visible { outline: 3px solid #dba74a; outline-offset: -3px; }
+.date-records { display: grid; gap: 12px; padding: 0 16px 16px; }
+.date-records .record { box-shadow: none; }
