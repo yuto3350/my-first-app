@@ -13,9 +13,8 @@ const retiredExercisesByPart = { '胸': ['腕立て伏せ'], '脚': ['カーフ�
 const bodyPart = document.querySelector('#body-part');
 const historyPart = document.querySelector('#history-part');
 const exercise = document.querySelector('#exercise');
-const weight = document.querySelector('#weight');
-const reps = document.querySelector('#reps');
-const sets = document.querySelector('#sets');
+const setRows = document.querySelector('#set-rows');
+const addSetButton = document.querySelector('#add-set');
 const date = document.querySelector('#date');
 const message = document.querySelector('#message');
 const cancelButton = document.querySelector('#cancel-button');
@@ -54,14 +53,76 @@ function today() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
+
+function validSet(set) {
+  return set && typeof set === 'object' &&
+    Number.isFinite(set.weight) && set.weight >= 0 && set.weight <= 10000 &&
+    Number.isInteger(set.reps) && set.reps >= 1 && set.reps <= 10000;
+}
+
+function setsForRecord(record) {
+  return Array.isArray(record.sets) ? record.sets :
+    Array.from({ length: record.sets }, () => ({ weight: record.weight, reps: record.reps }));
+}
+
+function renumberSets() {
+  Array.from(setRows.children).forEach((row, index) => {
+    row.querySelector('.set-number').textContent = `${index + 1}セット目`;
+    row.querySelector('button').disabled = setRows.children.length === 1;
+  });
+  addSetButton.disabled = setRows.children.length >= 1000;
+}
+
+function addSet(values = { weight: '', reps: '' }) {
+  if (setRows.children.length >= 1000) return;
+  const row = document.createElement('div');
+  row.className = 'set-row';
+  const number = document.createElement('span');
+  number.className = 'set-number';
+  row.append(number);
+  for (const [key, text, min, max, step] of [['weight', '重量（kg）', 0, 10000, 0.1], ['reps', '回数', 1, 10000, 1]]) {
+    const label = document.createElement('label');
+    label.textContent = text;
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'set-' + key;
+    input.min = min;
+    input.max = max;
+    input.step = step;
+    input.required = true;
+    input.value = values[key];
+    label.append(input);
+    row.append(label);
+  }
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'delete';
+  remove.textContent = '外す';
+  remove.addEventListener('click', () => {
+    if (setRows.children.length <= 1) return;
+    row.remove();
+    renumberSets();
+  });
+  row.append(remove);
+  setRows.append(row);
+  renumberSets();
+}
+addSetButton.addEventListener('click', () => {
+  const last = setRows.lastElementChild;
+  addSet(last ? {
+    weight: last.querySelector('.set-weight').value,
+    reps: last.querySelector('.set-reps').value,
+  } : undefined);
+});
+
 function validRecord(record) {
   if (!record || typeof record !== 'object') return false;
   const validDate = typeof record.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(record.date) && record.date.slice(0, 4) !== '0000' && new Date(`${record.date}T00:00:00Z`).toISOString().slice(0, 10) === record.date;
   return typeof record.id === 'string' && record.id.length > 0 &&
     Boolean(partForExercise(record.exercise)) &&
-    Number.isFinite(record.weight) && record.weight >= 0 && record.weight <= 10000 &&
-    Number.isInteger(record.reps) && record.reps >= 1 && record.reps <= 10000 &&
-    Number.isInteger(record.sets) && record.sets >= 1 && record.sets <= 1000 && validDate;
+    (Array.isArray(record.sets) ?
+      record.sets.length >= 1 && record.sets.length <= 1000 && record.sets.every(validSet) :
+      validSet(record) && Number.isInteger(record.sets) && record.sets >= 1 && record.sets <= 1000) && validDate;
 }
 
 // 書き込みに失敗したときは、表示中の記録を変更しません。
@@ -83,6 +144,8 @@ function saveRecords(nextRecords) {
 
 function resetForm() {
   form.reset();
+  setRows.replaceChildren();
+  addSet();
   updateExerciseOptions();
   date.value = today();
   editingId = null;
@@ -102,9 +165,8 @@ function editRecord(record) {
     exercise.append(option);
   }
   exercise.value = record.exercise;
-  weight.value = record.weight;
-  reps.value = record.reps;
-  sets.value = record.sets;
+  setRows.replaceChildren();
+  setsForRecord(record).forEach(addSet);
   date.value = record.date;
   document.querySelector('#form-title').textContent = '記録を編集';
   document.querySelector('#save-button').textContent = '変更を保存';
@@ -158,17 +220,32 @@ function renderRecords() {
     time.textContent = record.date.replaceAll('-', ' / ');
     const title = document.createElement('h3');
     title.textContent = record.exercise;
-    const stats = document.createElement('dl');
-    stats.className = 'stats';
-    for (const [label, value] of [['重量', `${record.weight} kg`], ['回数', `${record.reps} 回`], ['セット数', `${record.sets} セット`]]) {
-      const group = document.createElement('div');
-      const term = document.createElement('dt');
-      term.textContent = label;
-      const detail = document.createElement('dd');
-      detail.textContent = value;
-      group.append(term, detail);
-      stats.append(group);
+    const stats = document.createElement('table');
+    stats.className = 'set-table';
+    const caption = document.createElement('caption');
+    caption.textContent = record.exercise + 'のセット別記録';
+    stats.append(caption);
+    const head = document.createElement('thead');
+    const heading = document.createElement('tr');
+    for (const label of ['セット', '重量', '回数']) {
+      const th = document.createElement('th');
+      th.scope = 'col';
+      th.textContent = label;
+      heading.append(th);
     }
+    head.append(heading);
+    stats.append(head);
+    const tbody = document.createElement('tbody');
+    setsForRecord(record).forEach((set, index) => {
+      const tr = document.createElement('tr');
+      for (const value of [`${index + 1}セット目`, `${set.weight} kg`, `${set.reps} 回`]) {
+        const td = document.createElement('td');
+        td.textContent = value;
+        tr.append(td);
+      }
+      tbody.append(tr);
+    });
+    stats.append(tbody);
     const actions = document.createElement('div');
     actions.className = 'record-actions';
     for (const [label, className, action] of [['編集', 'secondary', editRecord], ['削除', 'delete', deleteRecord]]) {
@@ -191,9 +268,10 @@ form.addEventListener('submit', event => {
   const record = {
     id: editingId || crypto.randomUUID(),
     exercise: exercise.value,
-    weight: Number(weight.value),
-    reps: Number(reps.value),
-    sets: Number(sets.value),
+    sets: Array.from(setRows.children, row => ({
+      weight: Number(row.querySelector('.set-weight').value),
+      reps: Number(row.querySelector('.set-reps').value),
+    })),
     date: date.value,
   };
   if (!validRecord(record)) {
