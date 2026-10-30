@@ -2,11 +2,14 @@
 const STORAGE_KEY = 'training-records-v1';
 const form = document.querySelector('#record-form');
 const exercisesByPart = {
-  '胸': ['ベンチプレス', 'ダンベルプレス', 'ダンベルフライ', '腕立て伏せ'],
-  '背中': ['デッドリフト', 'ラットプルダウン', '懸垂', 'シーテッドロー'],
-  '脚': ['スクワット', 'レッグプレス', 'レッグエクステンション', 'レッグカール', 'カーフレイズ'],
-  'その他': ['ショルダープレス', 'ダンベルカール', 'サイドレイズ', 'トライセプスエクステンション', '腹筋', 'その他'],
+  '胸': ['ベンチプレス', 'ダンベルプレス', 'ダンベルフライ', 'インクラインスミスベンチ', 'ペックフライ'],
+  '背中': ['ラットプルダウン', 'シーテッドロー', 'プルオーバー', 'デッドリフト', '懸垂'],
+  '脚': ['スクワット', 'レッグプレス', 'レッグエクステンション', 'レッグカール', '内もも', '外もも'],
+  '腕': ['ケーブルカール', 'ケーブルプレスダウン', 'ダンベルカール', 'ケーブルリバース'],
+  'その他': ['ショルダープレス', 'サイドレイズ', 'トライセプスエクステンション', '腹筋', 'その他'],
 };
+// 選択肢から外した種目も、過去の記録の読み込みと編集では扱います。
+const retiredExercisesByPart = { '胸': ['腕立て伏せ'], '脚': ['カーフレイズ'] };
 const bodyPart = document.querySelector('#body-part');
 const historyPart = document.querySelector('#history-part');
 const exercise = document.querySelector('#exercise');
@@ -21,7 +24,7 @@ let editingId = null;
 let storageReadable = true;
 
 function partForExercise(name) {
-  return Object.keys(exercisesByPart).find(part => exercisesByPart[part].includes(name));
+  return Object.keys(exercisesByPart).find(part => exercisesByPart[part].includes(name) || (retiredExercisesByPart[part] || []).includes(name));
 }
 
 function updateExerciseOptions() {
@@ -92,6 +95,12 @@ function editRecord(record) {
   editingId = record.id;
   bodyPart.value = partForExercise(record.exercise);
   updateExerciseOptions();
+  if (!exercisesByPart[bodyPart.value].includes(record.exercise)) {
+    const option = document.createElement('option');
+    option.value = record.exercise;
+    option.textContent = record.exercise;
+    exercise.append(option);
+  }
   exercise.value = record.exercise;
   weight.value = record.weight;
   reps.value = record.reps;
